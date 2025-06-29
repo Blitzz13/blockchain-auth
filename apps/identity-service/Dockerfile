@@ -15,11 +15,12 @@ RUN addgroup --system blockchain-auth-identity-service && \
           adduser --system -G blockchain-auth-identity-service blockchain-auth-identity-service
 
 COPY apps/identity-service/dist blockchain-auth-identity-service/
-COPY apps/identity-service/package.json blockchain-auth-identity-service/
 RUN chown -R blockchain-auth-identity-service:blockchain-auth-identity-service .
+
+WORKDIR blockchain-auth-identity-service
 
 # You can remove this install step if you build with `--bundle` option.
 # The bundled output will include external dependencies.
-RUN npm --prefix blockchain-auth-identity-service --omit=dev -f install
+RUN npm --omit=dev -f install
 
-CMD [ "node", "blockchain-auth-identity-service" ]
+CMD [ "node", "main.js" ]
