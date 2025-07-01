@@ -1,9 +1,39 @@
 import { Module } from '@nestjs/common';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
+import { MongooseModule, MongooseModuleOptions } from '@nestjs/mongoose';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { MONGO_CONFIG_TOKEN, mongoConfig } from '../configs/mongo.config';
+import { UsersModule } from '../users/users.module';
+import { jwtConfig } from '../configs/jwt.config';
+
+const nodeEnv = process.env.NODE_ENV;
 
 @Module({
-  imports: [],
+  imports: [
+    ConfigModule.forRoot({
+      envFilePath: nodeEnv ? `${nodeEnv}.env` : ".env",
+      isGlobal: true,
+      load: [mongoConfig, jwtConfig],
+    }), // loads .env variables
+    MongooseModule.forRootAsync({
+      useFactory: (configService: ConfigService): MongooseModuleOptions => {
+        const mongoConfig = configService.getOrThrow<MongooseModuleOptions>(MONGO_CONFIG_TOKEN);
+
+        return mongoConfig;
+      },
+      inject: [ConfigService],
+    }),
+    // JwtModule.registerAsync({
+    //   useFactory: (configService: ConfigService): JwtModuleOptions => {
+    //     const jwtConfig = configService.getOrThrow<JwtModuleOptions>(JWT_CONFIG_TOKEN);
+
+    //     return jwtConfig;
+    //   },
+    //   inject: [ConfigService],
+    // }),
+    UsersModule,
+  ],
   controllers: [AppController],
   providers: [AppService],
 })
