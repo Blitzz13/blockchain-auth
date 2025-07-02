@@ -4,6 +4,7 @@ import { AppService } from './app.service';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MongooseModule, MongooseModuleOptions } from '@nestjs/mongoose';
 import { MONGO_CONFIG_TOKEN, mongoConfig } from '../configs/mongo.config';
+import { TransactionsModule } from '../transactions/transactions.module';
 
 const nodeEnv = process.env.NODE_ENV;
 
@@ -22,6 +23,7 @@ const nodeEnv = process.env.NODE_ENV;
       },
       inject: [ConfigService],
     }),
+    TransactionsModule
   ],
   controllers: [AppController],
   providers: [AppService],
