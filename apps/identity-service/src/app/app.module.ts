@@ -6,6 +6,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { MONGO_CONFIG_TOKEN, mongoConfig } from '../configs/mongo.config';
 import { UsersModule } from '../users/users.module';
 import { jwtConfig } from '../configs/jwt.config';
+import { TokenModule } from '../tokens/token.module';
 
 const nodeEnv = process.env.NODE_ENV;
 
@@ -24,15 +25,8 @@ const nodeEnv = process.env.NODE_ENV;
       },
       inject: [ConfigService],
     }),
-    // JwtModule.registerAsync({
-    //   useFactory: (configService: ConfigService): JwtModuleOptions => {
-    //     const jwtConfig = configService.getOrThrow<JwtModuleOptions>(JWT_CONFIG_TOKEN);
-
-    //     return jwtConfig;
-    //   },
-    //   inject: [ConfigService],
-    // }),
     UsersModule,
+    TokenModule,
   ],
   controllers: [AppController],
   providers: [AppService],

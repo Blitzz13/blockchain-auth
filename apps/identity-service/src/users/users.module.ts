@@ -1,4 +1,3 @@
-// users/users.module.ts
 import { Module } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { User, UserSchema } from './schemas/user.schema';
@@ -6,6 +5,7 @@ import { UsersService } from './users.service';
 import { JwtModule, JwtModuleOptions } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { JWT_CONFIG_KEYS } from '../utils/config-keys';
+import { TokenModule } from '../tokens/token.module';
 
 @Module({
   imports: [
@@ -20,6 +20,7 @@ import { JWT_CONFIG_KEYS } from '../utils/config-keys';
       }),
       inject: [ConfigService],
     }),
+    TokenModule
   ],
   providers: [UsersService],
   exports: [UsersService, MongooseModule],
