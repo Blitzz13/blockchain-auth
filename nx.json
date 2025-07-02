@@ -52,7 +52,7 @@
       },
       "exclude": [
         "apps/identity-service-e2e/**/*",
-        "apps/blockhain-service-e2e/**/*"
+        "apps/blockchain-service-e2e/**/*"
       ]
     }
   ],

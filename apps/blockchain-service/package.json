@@ -1,5 +1,5 @@
 {
-  "name": "@blockchain-auth/blockhain-service",
+  "name": "@blockchain-auth/blockchain-service",
   "version": "0.0.1",
   "private": true,
   "nx": {
@@ -28,15 +28,15 @@
           "build"
         ],
         "options": {
-          "buildTarget": "@blockchain-auth/blockhain-service:build",
+          "buildTarget": "@blockchain-auth/blockchain-service:build",
           "runBuildTargetDependencies": false
         },
         "configurations": {
           "development": {
-            "buildTarget": "@blockchain-auth/blockhain-service:build:development"
+            "buildTarget": "@blockchain-auth/blockchain-service:build:development"
           },
           "production": {
-            "buildTarget": "@blockchain-auth/blockhain-service:build:production"
+            "buildTarget": "@blockchain-auth/blockchain-service:build:production"
           }
         }
       },
@@ -44,6 +44,12 @@
         "options": {
           "passWithNoTests": true
         }
+      },
+      "docker-build": {
+        "dependsOn": [
+          "build"
+        ],
+        "command": "docker build -f apps/blockchain-service/Dockerfile . -t blockchain-auth-blockchain-service"
       }
     }
   }

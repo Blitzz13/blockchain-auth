@@ -10,7 +10,7 @@ const swcJestConfig = JSON.parse(
 swcJestConfig.swcrc = false;
 
 export default {
-  displayName: '@blockchain-auth/blockhain-service',
+  displayName: '@blockchain-auth/blockchain-service',
   preset: '../../jest.preset.js',
   testEnvironment: 'node',
   transform: {

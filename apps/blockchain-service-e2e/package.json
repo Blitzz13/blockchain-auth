@@ -1,10 +1,10 @@
 {
-  "name": "@blockchain-auth/blockhain-service-e2e",
+  "name": "@blockchain-auth/blockchain-service-e2e",
   "version": "0.0.1",
   "private": true,
   "nx": {
     "implicitDependencies": [
-      "@blockchain-auth/blockhain-service"
+      "@blockchain-auth/blockchain-service"
     ],
     "targets": {
       "e2e": {
@@ -13,12 +13,12 @@
           "{projectRoot}/test-output/jest/coverage"
         ],
         "options": {
-          "jestConfig": "apps/blockhain-service-e2e/jest.config.ts",
+          "jestConfig": "apps/blockchain-service-e2e/jest.config.ts",
           "passWithNoTests": true
         },
         "dependsOn": [
-          "@blockchain-auth/blockhain-service:build",
-          "@blockchain-auth/blockhain-service:serve"
+          "@blockchain-auth/blockchain-service:build",
+          "@blockchain-auth/blockchain-service:serve"
         ]
       }
     }

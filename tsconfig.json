@@ -10,10 +10,10 @@
       "path": "./apps/identity-service"
     },
     {
-      "path": "./apps/blockhain-service-e2e"
+      "path": "./apps/blockchain-service-e2e"
     },
     {
-      "path": "./apps/blockhain-service"
+      "path": "./apps/blockchain-service"
     }
   ]
 }
