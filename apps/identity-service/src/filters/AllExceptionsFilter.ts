@@ -60,7 +60,6 @@ export class AllExceptionsFilter implements ExceptionFilter {
       this.logger.debug(errorMessage);
   }
 
-    // Send custom JSON response
     response.status(status).json({
       error: errorText,
       message: message,
