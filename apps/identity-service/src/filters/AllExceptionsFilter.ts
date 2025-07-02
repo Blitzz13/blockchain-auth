@@ -27,7 +27,6 @@ export class AllExceptionsFilter implements ExceptionFilter {
         ? exception.message || null
         : 'Internal server error';
 
-    // Default error string by status code
     const errorMap: Record<number, string> = {
       400: 'Bad Request',
       401: 'Unauthorized',
@@ -38,10 +37,8 @@ export class AllExceptionsFilter implements ExceptionFilter {
       500: 'Internal Server Error',
     };
 
-    // Pick error based on status, fallback to 'Error'
     const errorText = errorMap[status] || 'Error';
 
-    // Optionally extract validation details from exception response
     let details = {};
     if (exception instanceof HttpException) {
       const res = exception.getResponse();
