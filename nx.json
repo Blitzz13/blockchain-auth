@@ -1,10 +1,7 @@
 {
   "$schema": "./node_modules/nx/schemas/nx-schema.json",
   "namedInputs": {
-    "default": [
-      "{projectRoot}/**/*",
-      "sharedGlobals"
-    ],
+    "default": ["{projectRoot}/**/*", "sharedGlobals"],
     "production": [
       "default",
       "!{projectRoot}/.eslintrc.json",
@@ -54,15 +51,14 @@
         "targetName": "test"
       },
       "exclude": [
-        "apps/identity-service-e2e/**/*"
+        "apps/identity-service-e2e/**/*",
+        "apps/blockhain-service-e2e/**/*"
       ]
     }
   ],
   "targetDefaults": {
     "test": {
-      "dependsOn": [
-        "^build"
-      ]
+      "dependsOn": ["^build"]
     }
   }
 }
