@@ -23,40 +23,49 @@ export class TransactionsService {
   public async getOrFetchTransactions(
     address: string,
     range: { fromBlock?: number; toBlock?: number | 'latest' },
-  ) {
+  ): Promise<Transaction[]> {
+    const lowercasedAddress = address.toLowerCase();
+
     const fromBlock = range.fromBlock ?? 0;
     const toBlock = range.toBlock ?? 'latest';
 
-    // Fetch existing from DB
-    const cached = await this.txModel.find({
-      $or: [{ from: address }, { to: address }],
+    const latestCachedTx = await this.txModel
+      .findOne({
+        $or: [{ from: lowercasedAddress }, { to: lowercasedAddress }],
+      })
+      .sort({ blockNumber: -1 });
+
+    const startBlock = latestCachedTx
+      ? latestCachedTx.blockNumber + 1
+      : fromBlock;
+
+    const fetchedPlainTxs = await this.fetchTransactionsFromChain(
+      lowercasedAddress,
+      startBlock,
+      toBlock,
+    );
+
+    if (fetchedPlainTxs.length > 0) {
+      this.logger.log(
+        `Saving ${fetchedPlainTxs.length} new transactions to the database...`,
+      );
+
+      await this.txModel
+        .insertMany(fetchedPlainTxs, { ordered: false })
+        .catch((err) => {
+          if (err.code !== 11000) {
+            this.logger.error('Failed to insert transactions', err);
+          }
+        });
+    }
+
+    return this.txModel.find({
+      $or: [{ from: lowercasedAddress }, { to: lowercasedAddress }],
       blockNumber: {
         $gte: fromBlock,
         ...(toBlock !== 'latest' ? { $lte: toBlock } : {}),
       },
     });
-
-    // TODO: Improve this with actual logic to detect missing ranges, or always fetch + dedupe
-    const fetched = await this.fetchTransactionsFromChain(
-      address,
-      fromBlock,
-      toBlock,
-    );
-
-    // Save new to DB (skip duplicates)
-    const newTxs = await Promise.all(
-      fetched.map(async (tx) => {
-        const exists = await this.txModel.findOne({ hash: tx.hash });
-
-        if (!exists) {
-          return this.txModel.create(tx);
-        }
-
-        return null;
-      }),
-    );
-
-    return [...cached, ...newTxs.filter(Boolean)];
   }
 
   public async fetchTransactionsFromChain(
@@ -70,37 +79,90 @@ export class TransactionsService {
 
     const latestBlock =
       toBlock === 'latest' ? await this.provider.getBlockNumber() : toBlock;
-    const txs: Transaction[] = [];
 
-    for (let i = fromBlock; i <= latestBlock; i++) {
-      // Fetch block with full transactions
-      const block = await this.provider.send('eth_getBlockByNumber', [
-        ethers.hexlify('0x' + i.toString(16)),
-        true,
-      ]);
+    const BATCH_SIZE = 15;
 
-      if (!block || !block.transactions) {
-        continue;
+    const BATCH_DELAY_MS = 500;
+
+    const allTxs: Transaction[] = [];
+    const lowercasedAddress = address.toLowerCase();
+
+    for (
+      let batchStart = fromBlock;
+      batchStart <= latestBlock;
+      batchStart += BATCH_SIZE
+    ) {
+      const batchEnd = Math.min(batchStart + BATCH_SIZE - 1, latestBlock);
+
+      this.logger.log(`Preparing to fetch blocks ${batchStart} to ${batchEnd}`);
+
+      const blockPromises = [];
+
+      for (let i = batchStart; i <= batchEnd; i++) {
+        const blockPromise = this.provider.send('eth_getBlockByNumber', [
+          ethers.toQuantity(i),
+          true,
+        ]);
+
+        blockPromises.push(blockPromise);
       }
 
-      for (const tx of block.transactions) {
-        if (
-          tx.to?.toLowerCase() === address.toLowerCase() ||
-          tx.from.toLowerCase() === address.toLowerCase()
-        ) {
-          txs.push({
-            hash: tx.hash,
-            from: tx.from,
-            to: tx.to ?? '',
-            value: tx.value.toString(),
-            blockNumber: parseInt(block.number, 16),
-            timestamp: new Date(parseInt(block.timestamp, 16) * 1000),
-          } as Transaction);
+      try {
+        const blocks = await Promise.all(blockPromises);
+
+        for (const block of blocks) {
+          if (!block) {
+            continue;
+          }
+
+          if (block.transactions) {
+            for (const tx of block.transactions) {
+              if (
+                (tx.to && tx.to.toLowerCase() === lowercasedAddress) ||
+                tx.from.toLowerCase() === lowercasedAddress
+              ) {
+                allTxs.push({
+                  hash: tx.hash,
+                  from: tx.from,
+                  to: tx.to ?? '',
+                  value: tx.value.toString(),
+                  blockNumber: parseInt(block.number, 16),
+                  timestamp: new Date(parseInt(block.timestamp, 16) * 1000),
+                } as Transaction);
+              }
+            }
+          }
+
+          if (block.withdrawals) {
+            for (const withdrawal of block.withdrawals) {
+              if (withdrawal.address.toLowerCase() === lowercasedAddress) {
+                const syntheticHash = `withdrawal-${block.number}-${withdrawal.index}`;
+
+                allTxs.push({
+                  hash: syntheticHash,
+                  from: '0x0000000000000000000000000000000000000000',
+                  to: withdrawal.address,
+                  value: (
+                    BigInt(withdrawal.amount) * BigInt('1000000000')
+                  ).toString(),
+                  blockNumber: parseInt(block.number, 16),
+                  timestamp: new Date(parseInt(block.timestamp, 16) * 1000),
+                } as Transaction);
+              }
+            }
+          }
         }
+      } catch (error) {
+        this.logger.error(
+          `Failed to fetch batch ${batchStart}-${batchEnd}.`,
+          error,
+        );
       }
+
+      await new Promise((res) => setTimeout(res, BATCH_DELAY_MS));
     }
 
-    return txs;
+    return allTxs;
   }
 
   public async getBalanceForAddress(
