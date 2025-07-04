@@ -1,7 +1,7 @@
 import {
-  ExceptionFilter,
-  Catch,
   ArgumentsHost,
+  Catch,
+  ExceptionFilter,
   HttpException,
   HttpStatus,
   Logger,
@@ -12,17 +12,17 @@ import { Request, Response } from 'express';
 export class AllExceptionsFilter implements ExceptionFilter {
   private readonly logger = new Logger(AllExceptionsFilter.name);
 
-  catch(exception: unknown, host: ArgumentsHost) {
+  public catch(exception: unknown, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
     const request = ctx.getRequest<Request>();
 
-    let status =
+    const status =
       exception instanceof HttpException
         ? exception.getStatus()
         : HttpStatus.INTERNAL_SERVER_ERROR;
 
-    let message =
+    const message =
       exception instanceof HttpException
         ? exception.message || null
         : 'Internal server error';
@@ -40,8 +40,10 @@ export class AllExceptionsFilter implements ExceptionFilter {
     const errorText = errorMap[status] || 'Error';
 
     let details = {};
+
     if (exception instanceof HttpException) {
       const res = exception.getResponse();
+
       if (typeof res === 'object' && res !== null) {
         if ('message' in res && typeof res['message'] !== 'string') {
           details = { validationErrors: res['message'] };
@@ -49,16 +51,16 @@ export class AllExceptionsFilter implements ExceptionFilter {
       }
     }
 
-    const errorMessage = `HTTP Status: ${status} Error Message: ${message} Path: ${request.url}`
+    const errorMessage = `HTTP Status: ${status} Error Message: ${message} Path: ${request.url}`;
 
     if (status >= 500) {
       this.logger.error(
         errorMessage,
-        (exception instanceof Error) ? exception.stack : '',
+        exception instanceof Error ? exception.stack : '',
       );
-  } else {
+    } else {
       this.logger.debug(errorMessage);
-  }
+    }
 
     response.status(status).json({
       error: errorText,

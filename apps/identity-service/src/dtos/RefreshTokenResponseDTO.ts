@@ -1,9 +1,9 @@
-import { IsNotEmpty } from "class-validator";
+import { IsNotEmpty } from 'class-validator';
 
 export class RefreshTokenResponseDTO {
-    @IsNotEmpty()
-    accessToken!: string;
+  @IsNotEmpty()
+  accessToken!: string;
 
-    @IsNotEmpty()
-    expiresIn!: string;
-  }
+  @IsNotEmpty()
+  expiresIn!: string;
+}

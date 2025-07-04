@@ -175,6 +175,7 @@ export default tseslint.config(
       parser: tseslint.parser,
       parserOptions: {
         project: "./tsconfig.base.json",
+        tsconfigRootDir: new URL('.', import.meta.url).pathname,
         ecmaVersion: 2022,
         sourceType: "module",
         extraFileExtensions: [".html"],
