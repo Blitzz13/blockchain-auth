@@ -10,6 +10,7 @@ import { Transaction } from './schemas/transaction.schema';
 import { BalanceResponseDTO } from '../dtos/BalanceResponseDTO';
 import { ETHERS_CONFIG_KEYS } from '../utils/config-keys';
 import { Events } from '../utils/events';
+import { Throttle } from '../interceptors/throttle/throttle.decorator';
 
 @Injectable()
 export class TransactionsService {
@@ -26,6 +27,7 @@ export class TransactionsService {
     private configService: ConfigService,
   ) {}
 
+  @Throttle()
   public async getOrFetchTransactions(
     address: string,
     range: { fromBlock?: number; toBlock?: number | 'latest' },
@@ -39,8 +41,13 @@ export class TransactionsService {
       );
 
       await new Promise((resolve) => {
-        this.fetchEmitter.once(eventName, resolve);
-        this.logger.debug('Received on done and resolving the fetch.');
+        this.fetchEmitter.once(eventName, () => {
+          this.logger.debug(
+            `Event '${eventName}' received. Resolving the wait.`,
+          );
+
+          resolve(true);
+        });
       });
 
       return this.getOrFetchTransactions(address, range);
@@ -122,6 +129,7 @@ export class TransactionsService {
     const latestBlock =
       toBlock === 'latest' ? await this.provider.getBlockNumber() : toBlock;
 
+    //TODO: add BATCH_SIZE, BATCH_DELAY_MS as env vars
     const BATCH_SIZE = 15;
 
     const BATCH_DELAY_MS = 500;
