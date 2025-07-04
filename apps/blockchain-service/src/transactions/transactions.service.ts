@@ -1,3 +1,5 @@
+import EventEmitter from 'events';
+
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
@@ -7,6 +9,7 @@ import { ConfigService } from '@nestjs/config';
 import { Transaction } from './schemas/transaction.schema';
 import { BalanceResponseDTO } from '../dtos/BalanceResponseDTO';
 import { ETHERS_CONFIG_KEYS } from '../utils/config-keys';
+import { Events } from '../utils/events';
 
 @Injectable()
 export class TransactionsService {
@@ -14,6 +17,9 @@ export class TransactionsService {
   private readonly provider = new JsonRpcProvider(
     this.configService.getOrThrow(ETHERS_CONFIG_KEYS.ETHERS_URL),
   );
+
+  private currentlyFetching = new Set<string>();
+  private fetchEmitter = new EventEmitter();
 
   constructor(
     @InjectModel(Transaction.name) private readonly txModel: Model<Transaction>,
@@ -25,45 +31,81 @@ export class TransactionsService {
     range: { fromBlock?: number; toBlock?: number | 'latest' },
   ): Promise<Transaction[]> {
     const lowercasedAddress = address.toLowerCase();
+    const eventName = `${Events.ON_DONE}:${lowercasedAddress}`;
 
-    const fromBlock = range.fromBlock ?? 0;
-    const toBlock = range.toBlock ?? 'latest';
-
-    const latestCachedTx = await this.txModel
-      .findOne({
-        $or: [{ from: lowercasedAddress }, { to: lowercasedAddress }],
-      })
-      .sort({ blockNumber: -1 });
-
-    const startBlock = latestCachedTx
-      ? latestCachedTx.blockNumber + 1
-      : fromBlock;
-
-    const fetchedPlainTxs = await this.fetchTransactionsFromChain(
-      lowercasedAddress,
-      startBlock,
-      toBlock,
-    );
-
-    if (fetchedPlainTxs.length > 0) {
+    if (this.currentlyFetching.has(lowercasedAddress)) {
       this.logger.log(
-        `Saving ${fetchedPlainTxs.length} new transactions to the database...`,
+        `Fetch for ${lowercasedAddress} already in progress. Awaiting completion event.`,
       );
 
-      await this.txModel
-        .insertMany(fetchedPlainTxs, { ordered: false })
-        .catch((err) => {
-          if (err.code !== 11000) {
-            this.logger.error('Failed to insert transactions', err);
-          }
-        });
+      await new Promise((resolve) => {
+        this.fetchEmitter.once(eventName, resolve);
+        this.logger.debug('Received on done and resolving the fetch.');
+      });
+
+      return this.getOrFetchTransactions(address, range);
+    }
+
+    try {
+      this.currentlyFetching.add(lowercasedAddress);
+
+      let fromBlock = range.fromBlock;
+
+      if (fromBlock === undefined) {
+        this.logger.verbose(
+          `'fromBlock' not specified. Checking for contract creation...`,
+        );
+        const creationBlock =
+          await this.findContractCreationBlock(lowercasedAddress);
+
+        fromBlock = creationBlock ?? 0;
+      }
+
+      const toBlock = range.toBlock ?? 'latest';
+
+      const latestCachedTx = await this.txModel
+        .findOne({
+          $or: [{ from: lowercasedAddress }, { to: lowercasedAddress }],
+        })
+        .sort({ blockNumber: -1 });
+
+      const startBlock = latestCachedTx
+        ? latestCachedTx.blockNumber + 1
+        : fromBlock;
+
+      const fetchedPlainTxs = await this.fetchTransactionsFromChain(
+        lowercasedAddress,
+        startBlock,
+        toBlock,
+      );
+
+      if (fetchedPlainTxs.length > 0) {
+        this.logger.log(
+          `Saving ${fetchedPlainTxs.length} new transactions to the database...`,
+        );
+
+        await this.txModel
+          .insertMany(fetchedPlainTxs, { ordered: false })
+          .catch((err) => {
+            if (err.code !== 11000) {
+              this.logger.error('Failed to insert transactions', err);
+            }
+          });
+      }
+    } finally {
+      this.fetchEmitter.emit(eventName);
+      this.currentlyFetching.delete(lowercasedAddress);
+
+      this.logger.debug(
+        `Finished fetching for ${lowercasedAddress}. Emitted: ${eventName}`,
+      );
     }
 
     return this.txModel.find({
       $or: [{ from: lowercasedAddress }, { to: lowercasedAddress }],
       blockNumber: {
-        $gte: fromBlock,
-        ...(toBlock !== 'latest' ? { $lte: toBlock } : {}),
+        $gte: range.fromBlock,
+        ...(range.toBlock !== 'latest' ? { $lte: range.toBlock } : {}),
       },
     });
   }
@@ -73,7 +115,7 @@ export class TransactionsService {
     fromBlock: number,
     toBlock: number | 'latest',
   ) {
-    this.logger.log(
+    this.logger.debug(
       `Fetching transactions for ${address} from block ${fromBlock} to ${toBlock}`,
     );
 
@@ -178,5 +220,47 @@ export class TransactionsService {
       balanceWei: balanceWei.toString(),
       lastUpdated: new Date().toISOString(),
     };
+  }
+
+  private async findContractCreationBlock(
+    address: string,
+  ): Promise<number | null> {
+    this.logger.debug(`Checking for contract code at address ${address}...`);
+    const latestCode = await this.provider.getCode(address, 'latest');
+
+    // If there's no code at the latest block, it's not a contract.
+    if (latestCode === '0x') {
+      this.logger.debug(`Address ${address} is not a contract.`);
+
+      return null;
+    }
+
+    this.logger.verbose(
+      `Contract detected. Starting binary search for creation block...`,
+    );
+
+    // Binary search for the first block with code
+    let low = 0;
+    let high = await this.provider.getBlockNumber();
+    let creationBlock: number | null = null;
+
+    while (low <= high) {
+      const mid = Math.floor(low + (high - low) / 2);
+      const codeAtMid = await this.provider.getCode(address, mid);
+
+      if (codeAtMid !== '0x') {
+        // Code exists at the midpoint, so this *could* be the creation block.
+        // Store it and try to find an even earlier block.
+        creationBlock = mid;
+        high = mid - 1;
+      } else {
+        // No code exists, so the contract must have been created after this block.
+        low = mid + 1;
+      }
+    }
+
+    this.logger.log(`Found creation block for ${address}: ${creationBlock}`);
+
+    return creationBlock;
   }
 }
