@@ -14,13 +14,6 @@ assertDefined(JWT_ACESS_EXPIRES_IN, 'JWT_ACESS_EXPIRES_IN');
 assertDefined(JWT_REFRESH_SECRET, 'JWT_REFRESH_SECRET');
 assertDefined(JWT_REFRESH_EXPIRES_IN, 'JWT_REFRESH_EXPIRES_IN');
 
-// const options: JwtModuleOptions = {
-//     secret: JWT_SECRET,
-//     signOptions: {
-//         expiresIn: JWT_EXPERATION_DURATION,
-//     }
-// };
-
 export const JWT_CONFIG_TOKEN = 'jwt_config';
 export const jwtConfig = registerAs(JWT_CONFIG_TOKEN, () => ({
   access: {

@@ -36,4 +36,13 @@ export class TransactionsController {
 
     return { transactions };
   }
+
+  @Get('address/:address/balance')
+  public async getBalance(@Param('address') address: string) {
+    if (!/^0x[a-fA-F0-9]{40}$/.test(address)) {
+      throw new BadRequestException('Invalid Ethereum address');
+    }
+
+    return await this.transactionsService.getBalanceForAddress(address);
+  }
 }

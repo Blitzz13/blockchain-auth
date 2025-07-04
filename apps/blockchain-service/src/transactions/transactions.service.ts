@@ -2,16 +2,22 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
 import { Model } from 'mongoose';
 import { JsonRpcProvider, ethers } from 'ethers';
+import { ConfigService } from '@nestjs/config';
 
 import { Transaction } from './schemas/transaction.schema';
+import { BalanceResponseDTO } from '../dtos/BalanceResponseDTO';
+import { ETHERS_CONFIG_KEYS } from '../utils/config-keys';
 
 @Injectable()
 export class TransactionsService {
   private readonly logger = new Logger(TransactionsService.name);
-  private readonly provider = new JsonRpcProvider('x');
+  private readonly provider = new JsonRpcProvider(
+    this.configService.getOrThrow(ETHERS_CONFIG_KEYS.ETHERS_URL),
+  );
 
   constructor(
     @InjectModel(Transaction.name) private readonly txModel: Model<Transaction>,
+    private configService: ConfigService,
   ) {}
 
   public async getOrFetchTransactions(
@@ -95,5 +101,20 @@ export class TransactionsService {
     }
 
     return txs;
+  }
+
+  public async getBalanceForAddress(
+    address: string,
+  ): Promise<BalanceResponseDTO> {
+    const lowercased = address.toLowerCase();
+    const balanceWei = await this.provider.getBalance(lowercased);
+    const balanceEth = ethers.formatEther(balanceWei);
+
+    return {
+      address: lowercased,
+      balance: balanceEth,
+      balanceWei: balanceWei.toString(),
+      lastUpdated: new Date().toISOString(),
+    };
   }
 }
