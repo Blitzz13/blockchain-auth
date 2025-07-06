@@ -10,6 +10,7 @@ import { TransactionsModule } from '../transactions/transactions.module';
 import { etherConfig } from '../configs/ethers.config';
 import { ThrottleProvider } from '../interceptors/throttle/throttle.provider';
 import { ThrottleInterceptor } from '../interceptors/throttle/throttle.interceptor';
+import { ContractsModule } from '../contracts/contracts.module';
 
 const nodeEnv = process.env.NODE_ENV;
 
@@ -30,6 +31,7 @@ const nodeEnv = process.env.NODE_ENV;
       inject: [ConfigService],
     }),
     TransactionsModule,
+    ContractsModule,
   ],
   controllers: [AppController],
   providers: [
