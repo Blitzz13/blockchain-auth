@@ -10,8 +10,8 @@ import { TRefreshToken } from '../types/TRefreshToken';
 import { TSignPayload } from '../types/TSignPayload';
 
 @Injectable()
-export class TokensService {
-  private logger = new Logger(TokensService.name);
+export class AuthService {
+  private logger = new Logger(AuthService.name);
   constructor(
     @InjectModel(Token.name) private tokenModel: Model<Token>,
     private jwtService: JwtService,
@@ -109,7 +109,6 @@ export class TokensService {
     tokenRecord: Token | null,
     isRefresh: boolean,
   ): boolean {
-    this.logger.verbose(tokenRecord);
     if (!tokenRecord) {
       throw Error('Token not found');
     }
@@ -126,12 +125,6 @@ export class TokensService {
           : this.configService.get(JWT_CONFIG_KEYS.ACCESS_SECRET),
       })
     ) {
-      this.logger.debug(`INVALID`);
-      this.logger.debug(`token record valid: ${tokenRecord.isValid}`);
-      this.logger.debug(
-        `jwt verify: ${this.jwtService.verify(tokenToValidate)}`,
-      );
-
       return false;
     }
 

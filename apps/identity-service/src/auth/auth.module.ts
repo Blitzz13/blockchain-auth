@@ -1,11 +1,13 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { MongooseModule } from '@nestjs/mongoose';
 import { JwtModule, JwtModuleOptions } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 
 import { Token, TokenSchema } from './schema/token.schema';
-import { TokensService } from './token.service';
+import { AuthService } from './auth.service';
 import { JWT_CONFIG_KEYS } from '../utils/config-keys';
+import { AuthController } from './auth.controller';
+import { UsersModule } from '../users/users.module';
 
 @Module({
   imports: [
@@ -24,8 +26,10 @@ import { JWT_CONFIG_KEYS } from '../utils/config-keys';
       }),
       inject: [ConfigService],
     }),
+    forwardRef(() => UsersModule),
   ],
-  providers: [TokensService],
-  exports: [TokensService, MongooseModule],
+  controllers: [AuthController],
+  providers: [AuthService],
+  exports: [AuthService, MongooseModule],
 })
-export class TokenModule {}
+export class AuthModule {}

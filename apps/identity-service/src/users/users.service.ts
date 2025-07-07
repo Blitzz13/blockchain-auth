@@ -7,7 +7,7 @@ import { UserRegisterDto } from '../dtos/UserRegisterDTO';
 import { User } from './schemas/user.schema';
 import { UserLoginDto } from '../dtos/UserLoginDTO';
 import { LoginResponseDTO } from '../dtos/LoginResponseDTO';
-import { TokensService } from '../tokens/token.service';
+import { AuthService } from '../auth/auth.service';
 import { UserUpdateDto } from '../dtos/UserUpdateDTO';
 import { UserUpdatePasswordDTO } from '../dtos/UserUpdatePasswordDTO';
 import { TSignPayload } from '../types/TSignPayload';
@@ -17,7 +17,7 @@ export class UsersService {
   private logger: Logger = new Logger(UsersService.name);
   constructor(
     @InjectModel(User.name) private userModel: Model<User>,
-    private tokenService: TokensService,
+    private tokenService: AuthService,
   ) {}
 
   public async create(createUserDto: UserRegisterDto): Promise<User> {
@@ -86,6 +86,7 @@ export class UsersService {
         email: userUpdateDto.email,
         username: userUpdateDto.username,
       },
+      { new: true },
     );
   }
 

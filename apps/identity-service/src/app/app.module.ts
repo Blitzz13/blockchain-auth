@@ -7,7 +7,7 @@ import { AppService } from './app.service';
 import { MONGO_CONFIG_TOKEN, mongoConfig } from '../configs/mongo.config';
 import { UsersModule } from '../users/users.module';
 import { jwtConfig } from '../configs/jwt.config';
-import { TokenModule } from '../tokens/token.module';
+import { AuthModule } from '../auth/auth.module';
 
 const nodeEnv = process.env.NODE_ENV;
 
@@ -28,7 +28,7 @@ const nodeEnv = process.env.NODE_ENV;
       inject: [ConfigService],
     }),
     UsersModule,
-    TokenModule,
+    AuthModule,
   ],
   controllers: [AppController],
   providers: [AppService],
