@@ -16,7 +16,7 @@ import { Throttle } from '../interceptors/throttle/throttle.decorator';
 export class TransactionsService {
   private readonly logger = new Logger(TransactionsService.name);
   private readonly provider = new JsonRpcProvider(
-    this.configService.getOrThrow(ETHERS_CONFIG_KEYS.ETHERS_URL),
+    this.configService.getOrThrow(ETHERS_CONFIG_KEYS.ETHERS_HTTP_URL),
   );
 
   private currentlyFetching = new Set<string>();

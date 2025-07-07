@@ -15,6 +15,7 @@ assertDefined(JWT_REFRESH_SECRET, 'JWT_REFRESH_SECRET');
 assertDefined(JWT_REFRESH_EXPIRES_IN, 'JWT_REFRESH_EXPIRES_IN');
 
 export const JWT_CONFIG_TOKEN = 'jwt_config';
+// TODO: make a type for this
 export const jwtConfig = registerAs(JWT_CONFIG_TOKEN, () => ({
   access: {
     secret: JWT_ACCESS_SECRET,
