@@ -7,11 +7,13 @@ import {
   WatchedContract,
   WatchedContractSchema,
 } from './schemas/watched-contract.schema';
+import { Event, EventSchema } from './schemas/event.schema';
 
 @Module({
   imports: [
     MongooseModule.forFeature([
       { name: WatchedContract.name, schema: WatchedContractSchema },
+      { name: Event.name, schema: EventSchema },
     ]),
   ],
   controllers: [ContractsController],

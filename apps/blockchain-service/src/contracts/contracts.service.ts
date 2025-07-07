@@ -1,32 +1,52 @@
+import path from 'path';
+import { readFileSync } from 'fs';
+
 import {
   Injectable,
   Logger,
+  NotFoundException,
   OnModuleDestroy,
   OnModuleInit,
 } from '@nestjs/common';
 import { InjectModel } from '@nestjs/mongoose';
-import { Model } from 'mongoose';
-import { Contract, EventLog, Log, WebSocketProvider, ethers } from 'ethers';
+import { FilterQuery, Model } from 'mongoose';
+import {
+  Contract,
+  ContractEventPayload,
+  EventLog,
+  InterfaceAbi,
+  Log,
+  WebSocketProvider,
+  ethers,
+} from 'ethers';
 import { ConfigService } from '@nestjs/config';
+import { MongoServerError } from 'mongodb';
 
 import { WatchedContract } from './schemas/watched-contract.schema';
+import { Event } from './schemas/event.schema';
 import { ETHERS_CONFIG_KEYS } from '../utils/config-keys';
 import { WatchContractDto } from '../dtos/WatchContractDTO';
-import WethAbi from '../assets/abi.json';
+import { GetEventsQueryDto } from '../dtos/GetStoredEventsDTO';
 
 @Injectable()
 export class ContractsService implements OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(ContractsService.name);
   private provider!: WebSocketProvider;
-
   private liveContracts = new Map<string, Contract>();
   private keepAliveInterval!: NodeJS.Timeout;
+  private abi: InterfaceAbi;
 
   constructor(
     @InjectModel(WatchedContract.name)
     private readonly watchedContractModel: Model<WatchedContract>,
+    @InjectModel(Event.name)
+    private readonly eventModel: Model<Event>,
     private configService: ConfigService,
-  ) {}
+  ) {
+    const abiPath = path.resolve(__dirname, './assets/abi.json');
+
+    this.abi = JSON.parse(readFileSync(abiPath, 'utf-8'));
+  }
 
   public async onModuleInit() {
     this.logger.log('Service initializing...');
@@ -39,6 +59,70 @@ export class ContractsService implements OnModuleInit, OnModuleDestroy {
     if (this.keepAliveInterval) {
       clearInterval(this.keepAliveInterval);
     }
+  }
+
+  public async getStoredEvents(
+    address: string,
+    query: GetEventsQueryDto,
+  ): Promise<{ events: Event[]; status: WatchedContract | null }> {
+    const lowercasedAddress = address.toLowerCase();
+
+    // 1. Build the filter for the events query
+    const eventFilter: FilterQuery<Event> = {
+      contractAddress: lowercasedAddress,
+    };
+
+    // Add block range filters if they were provided
+    if (query.fromBlock || query.toBlock) {
+      eventFilter.blockNumber = {};
+      if (query.fromBlock) {
+        eventFilter.blockNumber.$gte = query.fromBlock;
+      }
+
+      if (query.toBlock) {
+        eventFilter.blockNumber.$lte = query.toBlock;
+      }
+    }
+
+    // 2. Fetch the events and the watcher status in parallel
+    const [events, status] = await Promise.all([
+      this.eventModel.find(eventFilter).sort({ blockNumber: 'asc' }),
+      this.watchedContractModel.findOne({ address: lowercasedAddress }),
+    ]);
+
+    return { events, status };
+  }
+
+  public async stopWatchingContract(address: string) {
+    const lowercasedAddress = address.toLowerCase();
+
+    const stoppedWatcher = await this.watchedContractModel.findOneAndUpdate(
+      { address: lowercasedAddress, isActive: true },
+      { $set: { isActive: false } },
+      { new: false },
+    );
+
+    if (!stoppedWatcher) {
+      throw new NotFoundException({
+        message: 'Contract not found or not being indexed',
+        error: 'ContractNotFound',
+      });
+    }
+
+    // Find the active listener in memory and remove it to free up resources.
+    const liveContract = this.liveContracts.get(lowercasedAddress);
+
+    if (liveContract) {
+      await liveContract.removeAllListeners(); // Detach the listener
+      this.liveContracts.delete(lowercasedAddress); // Remove from our active map
+      this.logger.debug(`Stopped live listener for ${lowercasedAddress}`);
+    }
+
+    // Return the required response object
+    return {
+      status: 'stopped',
+      lastIndexedBlock: stoppedWatcher.lastIndexedBlock,
+    };
   }
 
   public async startWatchingContract(address: string, dto: WatchContractDto) {
@@ -100,7 +184,7 @@ export class ContractsService implements OnModuleInit, OnModuleDestroy {
           `Querying for "${eventName}" events from block ${currentBlock} to ${toBlock}`,
         );
 
-        const contract = new ethers.Contract(address, WethAbi, this.provider);
+        const contract = new ethers.Contract(address, this.abi, this.provider);
         const events = await contract.queryFilter(
           eventName,
           currentBlock,
@@ -124,7 +208,6 @@ export class ContractsService implements OnModuleInit, OnModuleDestroy {
       await this.startLiveListener(address, eventSignature);
     } catch (error) {
       this.logger.error(`Error during historical sync for ${address}:`, error);
-      // ✅ FIXED: Explicitly ignore promise for scheduled retry
       setTimeout(
         () => void this.runHybridIndexer(address, eventSignature, startBlock),
         15000,
@@ -137,17 +220,18 @@ export class ContractsService implements OnModuleInit, OnModuleDestroy {
       `Attaching live listener for "${eventSignature}" on ${address}.`,
     );
     const eventName = eventSignature.split('(')[0];
-    const liveContract = new ethers.Contract(address, WethAbi, this.provider);
+    const liveContract = new ethers.Contract(address, this.abi, this.provider);
 
     await liveContract.removeAllListeners(eventName);
 
-    const listener = (...args: unknown[]) => {
-      const event = args[args.length - 1] as EventLog;
+    const listener = (...args: ContractEventPayload[]) => {
+      const event = args[args.length - 1];
 
-      this.logger.log(
-        `✅ Live event received for ${address}! Block: ${event.blockNumber}`,
+      this.logger.debug(
+        `Live event received for ${address}! Block: ${event.log.blockNumber}`,
       );
-      void this.processEvent(address, event);
+
+      void this.processEvent(address, event.log);
     };
 
     await liveContract.on(eventName, listener);
@@ -158,10 +242,46 @@ export class ContractsService implements OnModuleInit, OnModuleDestroy {
   private async processEvent(address: string, event: Log | EventLog) {
     // Check if this is a fully parsed EventLog with arguments
     if ('args' in event) {
-      this.logger.log(
-        `✅ Processing PARSED event "${event.eventName}" from block ${event.blockNumber}`,
+      this.logger.debug(
+        `Processing PARSED event "${event.eventName}" from block ${event.blockNumber}`,
       );
-      // ... add logic to save the parsed event data ...
+
+      try {
+        // ✅ Ethers 'args' is an array-like object; convert it to a plain object.
+        const plainArgs: Record<string, unknown> = {};
+
+        event.fragment.inputs.forEach((input, index) => {
+          const value = event.args[index];
+
+          plainArgs[input.name] =
+            typeof value === 'bigint' ? value.toString() : value;
+        });
+
+        // Get the block timestamp
+        const block = await event.getBlock();
+
+        // Create the document in the database
+        await this.eventModel.create({
+          contractAddress: address.toLowerCase(),
+          eventName: event.eventName,
+          args: plainArgs,
+          transactionHash: event.transactionHash,
+          blockNumber: event.blockNumber,
+          logIndex: event.index,
+          timestamp: new Date(block.timestamp * 1000),
+        });
+      } catch (error) {
+        // ✅ 2. Use the specific type in a type guard
+        if (error instanceof MongoServerError && error.code === 11000) {
+          // This is the expected duplicate key error.
+          this.logger.debug(
+            `Duplicate event skipped: Tx ${event.transactionHash}, LogIndex ${event.index}`,
+          );
+        } else {
+          // Any other error is unexpected.
+          this.logger.error('Failed to save event to database', error);
+        }
+      }
     } else {
       this.logger.warn(
         `Processing UNPARSED log from block ${event.blockNumber}. TxHash: ${event.transactionHash}`,
@@ -195,8 +315,7 @@ export class ContractsService implements OnModuleInit, OnModuleDestroy {
           err.message,
         );
         this.initializeProviderAndStartKeepAlive();
-        // ✅ FIXED: Explicitly ignore promise for background task
-        await this.restartAllWatchers();
+        void this.restartAllWatchers();
       });
     }, 30000);
   }
