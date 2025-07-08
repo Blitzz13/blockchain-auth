@@ -113,18 +113,24 @@ export class AuthService {
       throw Error('Token not found');
     }
 
-    const tokenToValidate = isRefresh
-      ? tokenRecord.refreshToken
-      : tokenRecord.accessToken;
+    try {
+      const tokenToValidate = isRefresh
+        ? tokenRecord.refreshToken
+        : tokenRecord.accessToken;
 
-    if (
-      !tokenRecord.isValid ||
-      !this.jwtService.verify(tokenToValidate, {
-        secret: isRefresh
-          ? this.configService.get(JWT_CONFIG_KEYS.REFRESH_SECRET)
-          : this.configService.get(JWT_CONFIG_KEYS.ACCESS_SECRET),
-      })
-    ) {
+      if (
+        !tokenRecord.isValid ||
+        !this.jwtService.verify(tokenToValidate, {
+          secret: isRefresh
+            ? this.configService.get(JWT_CONFIG_KEYS.REFRESH_SECRET)
+            : this.configService.get(JWT_CONFIG_KEYS.ACCESS_SECRET),
+        })
+      ) {
+        return false;
+      }
+    } catch (error) {
+      this.logger.error(error);
+
       return false;
     }
 
