@@ -1,0 +1,83 @@
+# A friendly name for your workflow, shown in the GitHub Actions tab
+name: Node.js CI
+
+# This section defines the triggers for the workflow.
+on:
+  # Run on pushes to the 'main' branch
+  push:
+    branches: [ "main" ]
+  # Run on pull requests targeting the 'main' branch
+  pull_request:
+    branches: [ "main" ]
+
+# A workflow is made up of one or more "jobs" that can run in parallel or sequence.
+jobs:
+  # ✅ Define a job for linting and setup.
+  # This job will run first.
+  lint:
+    # Specify the type of machine to run the job on.
+    runs-on: ubuntu-latest
+
+    steps:
+      # Step 1: Check out your repository's code
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # Step 2: Set up the Node.js environment
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20' # Specify the Node.js version you use
+          cache: 'npm' # Cache npm dependencies to speed up subsequent runs
+
+      # Step 3: Install project dependencies
+      - name: Install dependencies
+        run: npm ci # 'ci' is generally faster and safer for CI environments than 'install'
+
+      # Step 4: Run the linter
+      - name: Verify lint rules
+        run: npm run lint
+
+  # ✅ Define the first test job.
+  # It will only start after the 'lint' job succeeds.
+  test-identity-service:
+    needs: lint # This job depends on the 'lint' job
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run identity service tests
+        run:  npm exec nx test identity-service
+
+  # ✅ Define the second test job.
+  # It will run in parallel with 'test-identity-service'.
+  test-blockchain-service:
+    needs: lint # This job also depends on the 'lint' job
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run blockchain service tests
+        run:  npm exec nx test blockchain-service
