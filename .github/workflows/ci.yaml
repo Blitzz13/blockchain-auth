@@ -99,7 +99,7 @@ jobs:
       # Step to extract the version from package.json
       - name: Extract package version
         id: package-version
-        run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+        run: echo "version=$(node -p "require('./apps/blockchain-service/package.json').version")" >> $GITHUB_OUTPUT
       
       - name: Install dependencies
         run: npm i
