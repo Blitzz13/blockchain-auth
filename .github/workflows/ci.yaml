@@ -19,7 +19,7 @@ on:
         - blockchain-service
 
 jobs:
-  test:
+  verify-project-integrity:
     runs-on: ubuntu-latest
     env:
       SEOPOLIA_HTTPS_URL: "http://localhost"
