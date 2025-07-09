@@ -42,7 +42,7 @@ jobs:
       - name: Verify lint rules
         run: npm run lint
       - name: Run all tests
-        run: npm exec nx run-many --target=test
+        run: npm exec nx run-many --targets=test
 
   build-and-push-images:
     needs: test
