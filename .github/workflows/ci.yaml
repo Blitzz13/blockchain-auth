@@ -117,5 +117,5 @@ jobs:
           file: apps/blockchain-service/Dockerfile
           push: true # Push the image after building
           tags: |
-            ghcr.io/${{ github.repository_owner }}/blockchain-auth-blockchain-service:${{ steps.package-version.outputs.version }}
-            ghcr.io/${{ github.repository_owner }}/blockchain-auth-blockchain-service:latest
+            ghcr.io/${{ steps.string-utils.outputs.owner_lc }}/blockchain-auth-blockchain-service:${{ steps.package-version.outputs.version }}
+            ghcr.io/${{ steps.string-utils.outputs.owner_lc }}/blockchain-auth-blockchain-service:latest
