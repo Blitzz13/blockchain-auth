@@ -1,15 +1,13 @@
 name: Node.js CI
 
 on:
-  # Run on pushes to the 'main' branch
   push:
     branches: [ "main" ]
-  # Run on pull requests targeting the 'main' branch
   pull_request:
     branches: [ "main" ]
 
 jobs:
-  setup:
+  lint:
     runs-on: ubuntu-latest
 
     steps:
@@ -23,40 +21,15 @@ jobs:
           cache: 'npm'
 
       - name: Install dependencies
-        run: npm ci
+        run: npm i
 
-      - name: Upload node_modules artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: node-modules
-          path: node_modules/
-  lint:
-    needs: setup
-    runs-on: ubuntu-latest
-    
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: Download node_modules artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: node-modules
-          path: node_modules/
-
-      - name: Run lint
-        run:  npm run lint
+      - name: Verify lint rules
+        run: npm run lint
 
   test-identity-service:
-    needs: setup
+    needs: lint
     runs-on: ubuntu-latest
-    
+
     env:
       SEOPOLIA_HTTPS_URL: ${{ secrets.SEPOLIA_HTTPS_URL }}
       SEOPOLIA_WSS_URL: ${{ secrets.SEPOLIA_WSS_URL }}
@@ -64,34 +37,6 @@ jobs:
       JWT_ACCESS_EXPIRES_IN: "15m"
       JWT_REFRESH_SECRET: ${{ secrets.JWT_REFRESH_SECRET }}
       JWT_REFRESH_EXPIRES_IN: "7d"
-      MONGO_URI: ${{ secrets.MONGO_URI_TEST }} # Use a test database if possible
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: Download node_modules artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: node-modules
-          path: node_modules/
-
-      - name: Run identity service tests
-        run:  npm exec nx test identity-service
-
-  test-blockchain-service:
-    needs: setup
-    runs-on: ubuntu-latest
-
-    env:
-      SEOPOLIA_HTTPS_URL: ${{ secrets.SEPOLIA_HTTPS_URL }}
-      SEOPOLIA_WSS_URL: ${{ secrets.SEPOLIA_WSS_URL }}
       MONGO_URI: ${{ secrets.MONGO_URI_TEST }}
 
     steps:
@@ -104,11 +49,37 @@ jobs:
           node-version: '20'
           cache: 'npm'
 
-      - name: Download node_modules artifact
-        uses: actions/download-artifact@v4
+      - name: Install dependencies
+        run: npm i
+
+      - name: Run identity service tests
+        run:  npm exec nx test identity-service
+
+  test-blockchain-service:
+    needs: lint # 
+    runs-on: ubuntu-latest
+
+    env:
+      SEOPOLIA_HTTPS_URL: ${{ secrets.SEPOLIA_HTTPS_URL }}
+      SEOPOLIA_WSS_URL: ${{ secrets.SEPOLIA_WSS_URL }}
+      JWT_ACCESS_SECRET: ${{ secrets.JWT_ACCESS_SECRET }}
+      JWT_ACCESS_EXPIRES_IN: "15m"
+      JWT_REFRESH_SECRET: ${{ secrets.JWT_REFRESH_SECRET }}
+      JWT_REFRESH_EXPIRES_IN: "7d"
+      MONGO_URI: ${{ secrets.MONGO_URI_TEST }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
         with:
-          name: node-modules
-          path: node_modules/
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm i
 
       - name: Run blockchain service tests
         run:  npm exec nx test blockchain-service
