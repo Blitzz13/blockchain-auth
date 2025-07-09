@@ -45,7 +45,7 @@ jobs:
         run: npm exec -- nx run-many --target test
 
   build-and-push-images:
-    needs: test
+    needs: verify-project-integrity
     if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions:
