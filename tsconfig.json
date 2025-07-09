@@ -4,13 +4,7 @@
   "files": [],
   "references": [
     {
-      "path": "./apps/identity-service-e2e"
-    },
-    {
       "path": "./apps/identity-service"
-    },
-    {
-      "path": "./apps/blockchain-service-e2e"
     },
     {
       "path": "./apps/blockchain-service"

@@ -1,0 +1,100 @@
+name: CI and Manual Deploy
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+    
+  workflow_dispatch:
+    inputs:
+      service:
+        description: 'Which service to build and deploy?'
+        required: true
+        type: choice
+        default: 'all'
+        options:
+        - all
+        - identity-service
+        - blockchain-service
+
+jobs:
+  verify-project-integrity:
+    runs-on: ubuntu-latest
+    env:
+      SEOPOLIA_HTTPS_URL: "http://localhost"
+      SEOPOLIA_WSS_URL: "ws://localhost"
+      JWT_ACCESS_SECRET: "test_secret"
+      JWT_ACCESS_EXPIRES_IN: "15m"
+      JWT_REFRESH_SECRET: "test_secret2"
+      JWT_REFRESH_EXPIRES_IN: "7d"
+      MONGO_URI: "mongodb://localhost/test"
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm ci
+      - name: Verify lint rules
+        run: npm run lint
+      - name: Run all tests
+        run: npm exec -- nx run-many --target test
+
+  build-and-push-images:
+    needs: verify-project-integrity
+    if: github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    strategy:
+      matrix:
+        service: ${{ github.event.inputs.service == 'all' && fromJSON('["identity-service", "blockchain-service"]') || fromJSON(format('["{0}"]', github.event.inputs.service)) }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+      
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build application for ${{ matrix.service }}
+        run: npm exec nx build ${{ matrix.service }}
+
+      - name: Extract package version
+        id: package-version
+        run: echo "version=$(node -p "require('./apps/${{ matrix.service }}/package.json').version")" >> $GITHUB_OUTPUT
+      
+      - name: Set Docker image name variables
+        id: string-utils
+        run: |
+          echo "owner_lc=$(echo ${{ github.repository_owner }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+          echo "image_name=blockchain-auth-${{ matrix.service }}" >> $GITHUB_OUTPUT
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image for ${{ matrix.service }}
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: apps/${{ matrix.service }}/Dockerfile
+          push: true
+          tags: |
+            ghcr.io/${{ steps.string-utils.outputs.owner_lc }}/${{ steps.string-utils.outputs.image_name }}:${{ steps.package-version.outputs.version }}
+            ghcr.io/${{ steps.string-utils.outputs.owner_lc }}/${{ steps.string-utils.outputs.image_name }}:latest
