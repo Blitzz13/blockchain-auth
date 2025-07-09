@@ -31,13 +31,13 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      SEOPOLIA_HTTPS_URL: ${{ secrets.SEPOLIA_HTTPS_URL }}
-      SEOPOLIA_WSS_URL: ${{ secrets.SEPOLIA_WSS_URL }}
-      JWT_ACCESS_SECRET: ${{ secrets.JWT_ACCESS_SECRET }}
+      SEOPOLIA_HTTPS_URL: "seopoloa_https_url"
+      SEOPOLIA_WSS_URL: "seopoloa_wss_url"
+      JWT_ACCESS_SECRET: "test_secret"
       JWT_ACCESS_EXPIRES_IN: "15m"
-      JWT_REFRESH_SECRET: ${{ secrets.JWT_REFRESH_SECRET }}
+      JWT_REFRESH_SECRET: "test_secret2"
       JWT_REFRESH_EXPIRES_IN: "7d"
-      MONGO_URI: ${{ secrets.MONGO_URI_TEST }}
+      MONGO_URI: "mongo_uri"
 
     steps:
       - name: Checkout code
@@ -60,13 +60,13 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      SEOPOLIA_HTTPS_URL: ${{ secrets.SEPOLIA_HTTPS_URL }}
-      SEOPOLIA_WSS_URL: ${{ secrets.SEPOLIA_WSS_URL }}
-      JWT_ACCESS_SECRET: ${{ secrets.JWT_ACCESS_SECRET }}
+      SEOPOLIA_HTTPS_URL: "seopoloa_https_url"
+      SEOPOLIA_WSS_URL: "seopoloa_wss_url"
+      JWT_ACCESS_SECRET: "test_secret"
       JWT_ACCESS_EXPIRES_IN: "15m"
-      JWT_REFRESH_SECRET: ${{ secrets.JWT_REFRESH_SECRET }}
+      JWT_REFRESH_SECRET: "test_secret2"
       JWT_REFRESH_EXPIRES_IN: "7d"
-      MONGO_URI: ${{ secrets.MONGO_URI_TEST }}
+      MONGO_URI: "mongo_uri"
 
     steps:
       - name: Checkout code
