@@ -1,43 +1,60 @@
-name: Node.js CI
+name: CI and Manual Deploy
 
 on:
   push:
     branches: [ "main" ]
   pull_request:
     branches: [ "main" ]
+    
+  workflow_dispatch:
+    inputs:
+      service:
+        description: 'Which service to build and deploy?'
+        required: true
+        type: choice
+        default: 'all'
+        options:
+        - all
+        - identity-service
+        - blockchain-service
 
 jobs:
-  lint:
+  test:
     runs-on: ubuntu-latest
-
+    env:
+      SEOPOLIA_HTTPS_URL: "http://localhost"
+      SEOPOLIA_WSS_URL: "ws://localhost"
+      JWT_ACCESS_SECRET: "test_secret"
+      JWT_ACCESS_EXPIRES_IN: "15m"
+      JWT_REFRESH_SECRET: "test_secret2"
+      JWT_REFRESH_EXPIRES_IN: "7d"
+      MONGO_URI: "mongodb://localhost/test"
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: '20'
           cache: 'npm'
-
       - name: Install dependencies
-        run: npm i
-
+        run: npm ci
       - name: Verify lint rules
         run: npm run lint
+      - name: Run all tests
+        run: npm exec nx run-many --target=test
 
-  test-identity-service:
-    needs: lint
+  build-and-push-images:
+    needs: test
+    if: github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
 
-    env:
-      SEOPOLIA_HTTPS_URL: "seopoloa_https_url"
-      SEOPOLIA_WSS_URL: "seopoloa_wss_url"
-      JWT_ACCESS_SECRET: "test_secret"
-      JWT_ACCESS_EXPIRES_IN: "15m"
-      JWT_REFRESH_SECRET: "test_secret2"
-      JWT_REFRESH_EXPIRES_IN: "7d"
-      MONGO_URI: "mongo_uri"
+    strategy:
+      matrix:
+        service: ${{ github.event.inputs.service == 'all' && fromJSON('["identity-service", "blockchain-service"]') || fromJSON(format('["{0}"]', github.event.inputs.service)) }}
 
     steps:
       - name: Checkout code
@@ -48,130 +65,36 @@ jobs:
         with:
           node-version: '20'
           cache: 'npm'
-
-      - name: Install dependencies
-        run: npm i
-
-      - name: Run identity service tests
-        run:  npm exec nx test identity-service
-
-  test-blockchain-service:
-    needs: lint # 
-    runs-on: ubuntu-latest
-
-    env:
-      SEOPOLIA_HTTPS_URL: "seopoloa_https_url"
-      SEOPOLIA_WSS_URL: "seopoloa_wss_url"
-      JWT_ACCESS_SECRET: "test_secret"
-      JWT_ACCESS_EXPIRES_IN: "15m"
-      JWT_REFRESH_SECRET: "test_secret2"
-      JWT_REFRESH_EXPIRES_IN: "7d"
-      MONGO_URI: "mongo_uri"
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-          cache: 'npm'
-
-      - name: Install dependencies
-        run: npm i
-
-      - name: Run blockchain service tests
-        run:  npm exec nx test blockchain-service
-
-  build-and-push-blockchain-service:
-    needs: [test-identity-service, test-blockchain-service]
-    runs-on: ubuntu-latest
-
-    permissions:
-      contents: read
-      packages: write
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      # Step to extract the version from package.json
-      - name: Extract package version
-        id: package-version
-        run: echo "version=$(node -p "require('./apps/blockchain-service/package.json').version")" >> $GITHUB_OUTPUT
       
       - name: Install dependencies
-        run: npm i
+        run: npm ci
 
-      - name: Build application
-        run: npm exec nx build blockchain-service
+      - name: Build application for ${{ matrix.service }}
+        run: npm exec nx build ${{ matrix.service }}
 
+      - name: Extract package version
+        id: package-version
+        run: echo "version=$(node -p "require('./apps/${{ matrix.service }}/package.json').version")" >> $GITHUB_OUTPUT
+      
       - name: Set Docker image name variables
         id: string-utils
         run: |
           echo "owner_lc=$(echo ${{ github.repository_owner }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
-      # Step to log in to the container registry (e.g., GHCR)
+          echo "image_name=blockchain-auth-${{ matrix.service }}" >> $GITHUB_OUTPUT
+
       - name: Log in to GitHub Container Registry
         uses: docker/login-action@v3
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
-          password: ${{ secrets.WORKFLOW_TOKEN }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Step to build and tag the Docker image
-      - name: Build and push Docker image
+      - name: Build and push Docker image for ${{ matrix.service }}
         uses: docker/build-push-action@v5
         with:
           context: .
-          file: apps/blockchain-service/Dockerfile
-          push: true # Push the image after building
+          file: apps/${{ matrix.service }}/Dockerfile
+          push: true
           tags: |
-            ghcr.io/${{ steps.string-utils.outputs.owner_lc }}/blockchain-auth-blockchain-service:${{ steps.package-version.outputs.version }}
-            ghcr.io/${{ steps.string-utils.outputs.owner_lc }}/blockchain-auth-blockchain-service:latest
-
-  build-and-push-identity-service:
-    needs: [test-identity-service, test-blockchain-service]
-    runs-on: ubuntu-latest
-
-    permissions:
-      contents: read
-      packages: write
-
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
-
-      # Step to extract the version from package.json
-      - name: Extract package version
-        id: package-version
-        run: echo "version=$(node -p "require('./apps/identity-service/package.json').version")" >> $GITHUB_OUTPUT
-      
-      - name: Install dependencies
-        run: npm i
-
-      - name: Build application
-        run: npm exec nx build identity-service
-
-      - name: Set Docker image name variables
-        id: string-utils
-        run: |
-          echo "owner_lc=$(echo ${{ github.repository_owner }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
-      # Step to log in to the container registry (e.g., GHCR)
-      - name: Log in to GitHub Container Registry
-        uses: docker/login-action@v3
-        with:
-          registry: ghcr.io
-          username: ${{ github.actor }}
-          password: ${{ secrets.WORKFLOW_TOKEN }}
-
-      # Step to build and tag the Docker image
-      - name: Build and push Docker image
-        uses: docker/build-push-action@v5
-        with:
-          context: .
-          file: apps/identity-service/Dockerfile
-          push: true # Push the image after building
-          tags: |
-            ghcr.io/${{ steps.string-utils.outputs.owner_lc }}/blockchain-auth-identity-service:${{ steps.package-version.outputs.version }}
-            ghcr.io/${{ steps.string-utils.outputs.owner_lc }}/blockchain-auth-identity-service:latest
+            ghcr.io/${{ steps.string-utils.outputs.owner_lc }}/${{ steps.string-utils.outputs.image_name }}:${{ steps.package-version.outputs.version }}
+            ghcr.io/${{ steps.string-utils.outputs.owner_lc }}/${{ steps.string-utils.outputs.image_name }}:latest
