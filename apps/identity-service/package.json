@@ -60,7 +60,7 @@
         "dependsOn": [
           "build"
         ],
-        "command": "docker build -f apps/identity-service/Dockerfile . -t blockchain-auth-identity-service"
+        "command": "VERSION=$(node -p \"require('./apps/identity-service/package.json').version\") && docker build -f apps/identity-service/Dockerfile . -t blockchain-auth-identity-service:$VERSION -t blockchain-auth-identity-service:latest"
       }
     }
   }

@@ -67,7 +67,7 @@
         "dependsOn": [
           "build"
         ],
-        "command": "docker build -f apps/blockchain-service/Dockerfile . -t blockchain-auth-blockchain-service"
+        "command": "VERSION=$(node -p \"require('./apps/blockchain-service/package.json').version\") && docker build -f apps/blockchain-service/Dockerfile . -t blockchain-auth-blockchain-service:$VERSION -t blockchain-auth-blockchain-service:latest"
       }
     }
   }
