@@ -1,101 +1,186 @@
 # BlockchainAuth
 
-<a alt="Nx logo" href="https://nx.dev" target="_blank" rel="noreferrer"><img src="https://raw.githubusercontent.com/nrwl/nx/master/images/nx-logo.png" width="45"></a>
+A monorepo project using [Nx](https://nx.dev) that includes:
 
-✨ Your new, shiny [Nx workspace](https://nx.dev) is ready ✨.
+- `blockchain-service`
+- `identity-service`
 
-[Learn more about this workspace setup and its capabilities](https://nx.dev/nx-api/node?utm_source=nx_project&amp;utm_medium=readme&amp;utm_campaign=nx_projects) or run `npx nx graph` to visually explore what was created. Now, let's get you up to speed!
+This project consists of two microservices:
 
-## Run tasks
+- Identity Service – A lightweight authentication service that handles user registration, login, and identity management.
 
-To run the dev server for your app, use:
+- Blockchain Service – A specialized service that indexes Ethereum smart contracts and retrieves transaction data for a given contract across a specified block range.
+
+---
+
+## 🛠️ Prerequisites
+
+### 1. Install Dependencies
+
+Install project dependencies:
 
 ```sh
+npm install
+```
+
+### 2. Install Docker
+
+Ensure [Docker](https://docs.docker.com/get-docker/) and Docker Compose are installed.
+
+---
+
+## 🧩 MongoDB Setup
+
+Run MongoDB locally in a Docker container:
+
+```sh
+docker run -it \
+  --name my-interactive-mongo \
+  -e MONGO_INITDB_ROOT_USERNAME=root \
+  -e MONGO_INITDB_ROOT_PASSWORD=1234 \
+  -e MONGO_INITDB_DATABASE=blockchain_auth \
+  -p 27017:27017 \
+  -v mongodata:/data/db \
+  mongo:7.0
+```
+
+To restart it later:
+
+```sh
+docker start -ai my-interactive-mongo
+```
+
+---
+
+## 🔗 Blockchain Service Configuration
+
+1. Create an account at [Metamask Developer](https://metamask.io/).
+2. Create an API key and click its name under "API Keys".
+3. In the **All Endpoints** section:
+   - Disable all endpoints except `Ethereum - Sepolia`.
+4. In **Active Endpoints**, copy the `HTTPS` and `WebSocket` URLs.
+
+You’ll need these for environment variables later.
+
+---
+
+## ⚙️ Environment Setup
+
+Create `.env` files for both services using `.env.example` as a template. Place them in the same folder as the example files.
+
+---
+
+## 🚀 Running the Project
+
+### Dev Servers
+
+```sh
+npx nx serve blockchain-service
 npx nx serve identity-service
 ```
 
-To create a production bundle:
+### Production Build
 
 ```sh
+npx nx build blockchain-service
 npx nx build identity-service
 ```
 
-To see all available targets to run for a project, run:
+### View Available Targets
 
 ```sh
+npx nx show project blockchain-service
 npx nx show project identity-service
 ```
 
-These targets are either [inferred automatically](https://nx.dev/concepts/inferred-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) or defined in the `project.json` or `package.json` files.
+### Run Tests
 
-[More about running tasks in the docs &raquo;](https://nx.dev/features/run-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
+```sh
+npx nx test blockchain-service
+npx nx test identity-service
+```
 
-## Add new projects
+> To view coverage reports, use the `test:coverage` target.
 
-While you could add new projects to your workspace manually, you might want to leverage [Nx plugins](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) and their [code generation](https://nx.dev/features/generate-code?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) feature.
+### Lint Project
 
-Use the plugin's generator to create new projects.
+```sh
+npm run lint
+```
 
-To generate a new application, use:
+---
+
+## 🐳 Docker Usage
+
+### Build Docker Images Locally
+
+```sh
+npx nx docker-build identity-service
+npx nx docker-build blockchain-service
+```
+
+### Remote Images from GitHub
+
+These images are available in the GitHub Container Registry:
+
+- `ghcr.io/blitzz13/blockchain-auth-blockchain-service:0.0.1`
+- `ghcr.io/blitzz13/blockchain-auth-identity-service:0.0.1`
+
+You can either:
+
+- Pull manually:
+
+```sh
+docker pull ghcr.io/blitzz13/blockchain-auth-blockchain-service:0.0.1
+docker pull ghcr.io/blitzz13/blockchain-auth-identity-service:0.0.1
+```
+
+- Or reference them directly in `docker-compose.yaml`.
+
+### Docker Compose
+
+Before running, update `SEPOLIA_HTTPS_URL` and `SEPOLIA_WSS_URL` in `docker-compose.yaml` with your API keys.
+
+If you’re using remote images, replace:
+
+```yaml
+image: blockchain-auth-identity-service:latest
+```
+
+with:
+
+```yaml
+image: ghcr.io/blitzz13/blockchain-auth-identity-service:0.0.1
+```
+
+Do the same for `blockchain-service`.
+
+Then run:
+
+**Mac/Linux:**
+
+```sh
+docker compose up
+```
+
+**Windows:**
+
+```sh
+docker-compose up
+```
+
+---
+
+## 🧱 Add New Projects
+
+Generate a new app:
 
 ```sh
 npx nx g @nx/node:app demo
 ```
 
-To generate a new library, use:
+Generate a new library:
 
 ```sh
 npx nx g @nx/node:lib mylib
 ```
-
-You can use `npx nx list` to get a list of installed plugins. Then, run `npx nx list <plugin-name>` to learn about more specific capabilities of a particular plugin. Alternatively, [install Nx Console](https://nx.dev/getting-started/editor-setup?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) to browse plugins and generators in your IDE.
-
-[Learn more about Nx plugins &raquo;](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) | [Browse the plugin registry &raquo;](https://nx.dev/plugin-registry?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-## Set up CI!
-
-### Step 1
-
-To connect to Nx Cloud, run the following command:
-
-```sh
-npx nx connect
-```
-
-Connecting to Nx Cloud ensures a [fast and scalable CI](https://nx.dev/ci/intro/why-nx-cloud?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects) pipeline. It includes features such as:
-
-- [Remote caching](https://nx.dev/ci/features/remote-cache?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Task distribution across multiple machines](https://nx.dev/ci/features/distribute-task-execution?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Automated e2e test splitting](https://nx.dev/ci/features/split-e2e-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Task flakiness detection and rerunning](https://nx.dev/ci/features/flaky-tasks?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-### Step 2
-
-Use the following command to configure a CI workflow for your workspace:
-
-```sh
-npx nx g ci-workflow
-```
-
-[Learn more about Nx on CI](https://nx.dev/ci/intro/ci-with-nx#ready-get-started-with-your-provider?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-## Install Nx Console
-
-Nx Console is an editor extension that enriches your developer experience. It lets you run tasks, generate code, and improves code autocompletion in your IDE. It is available for VSCode and IntelliJ.
-
-[Install Nx Console &raquo;](https://nx.dev/getting-started/editor-setup?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-## Useful links
-
-Learn more:
-
-- [Learn more about this workspace setup](https://nx.dev/nx-api/node?utm_source=nx_project&amp;utm_medium=readme&amp;utm_campaign=nx_projects)
-- [Learn about Nx on CI](https://nx.dev/ci/intro/ci-with-nx?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [Releasing Packages with Nx release](https://nx.dev/features/manage-releases?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-- [What are Nx plugins?](https://nx.dev/concepts/nx-plugins?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
-
-And join the Nx community:
-- [Discord](https://go.nx.dev/community)
-- [Follow us on X](https://twitter.com/nxdevtools) or [LinkedIn](https://www.linkedin.com/company/nrwl)
-- [Our Youtube channel](https://www.youtube.com/@nxdevtools)
-- [Our blog](https://nx.dev/blog?utm_source=nx_project&utm_medium=readme&utm_campaign=nx_projects)
