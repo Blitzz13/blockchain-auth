@@ -11,6 +11,13 @@ This project consists of two microservices:
 
 - Blockchain Service – A specialized service that indexes Ethereum smart contracts and retrieves transaction data for a given contract across a specified block range.
 
+Both of the services are deployed and can be called by the addresses bellow: 
+- https://blockchain-auth-blockchain-service.onrender.com/api
+- https://blockchain-auth-identity-service.onrender.com/api
+
+Warning since these are using the free tier of render they may need some time to windup the first time they are called.
+
+Swagger documentation can be found at http://{base_url}/api
 ---
 
 ## 🛠️ Prerequisites
@@ -123,16 +130,16 @@ npx nx docker-build blockchain-service
 
 These images are available in the GitHub Container Registry:
 
-- `ghcr.io/blitzz13/blockchain-auth-blockchain-service:0.0.1`
-- `ghcr.io/blitzz13/blockchain-auth-identity-service:0.0.1`
+- `ghcr.io/blitzz13/blockchain-auth-blockchain-service:latest`
+- `ghcr.io/blitzz13/blockchain-auth-identity-service:latest`
 
 You can either:
 
 - Pull manually:
 
 ```sh
-docker pull ghcr.io/blitzz13/blockchain-auth-blockchain-service:0.0.1
-docker pull ghcr.io/blitzz13/blockchain-auth-identity-service:0.0.1
+docker pull ghcr.io/blitzz13/blockchain-auth-blockchain-service:latest
+docker pull ghcr.io/blitzz13/blockchain-auth-identity-service:latest
 ```
 
 - Or reference them directly in `docker-compose.yaml`.
@@ -150,7 +157,7 @@ image: blockchain-auth-identity-service:latest
 with:
 
 ```yaml
-image: ghcr.io/blitzz13/blockchain-auth-identity-service:0.0.1
+image: ghcr.io/blitzz13/blockchain-auth-identity-service:latest
 ```
 
 Do the same for `blockchain-service`.

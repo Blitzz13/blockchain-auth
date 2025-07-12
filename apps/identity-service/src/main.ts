@@ -1,3 +1,6 @@
+import { existsSync, readFileSync } from 'fs';
+import path from 'path';
+
 import {
   BadRequestException,
   Logger,
@@ -5,6 +8,7 @@ import {
   ValidationPipe,
 } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
+import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 
 import { AppModule } from './app/app.module';
 import { AllExceptionsFilter } from './filters/AllExceptionsFilter';
@@ -12,6 +16,7 @@ import { AllExceptionsFilter } from './filters/AllExceptionsFilter';
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   const globalPrefix = 'api';
+  const version = getAppVersion();
 
   app.setGlobalPrefix(globalPrefix);
   app.useGlobalFilters(new AllExceptionsFilter());
@@ -35,6 +40,18 @@ async function bootstrap() {
       },
     }),
   );
+
+  // Create a Swagger configuration object using the DocumentBuilder
+  const config = new DocumentBuilder()
+    .setTitle('Authorization API')
+    .setVersion(version)
+    .build();
+
+  // Create a Swagger document
+  const document = SwaggerModule.createDocument(app, config);
+
+  // Set up the Swagger UI endpoint
+  SwaggerModule.setup('api', app, document);
   const port = process.env.PORT || 3000;
 
   await app.listen(port);
@@ -44,3 +61,19 @@ async function bootstrap() {
 }
 
 void bootstrap();
+
+function getAppVersion(): string {
+  const possiblePaths = [
+    path.resolve(__dirname, '../package.json'), // when running from `src/`
+    path.resolve(__dirname, './package.json'), // when running from `dist/`
+  ];
+
+  for (const pkgPath of possiblePaths) {
+    if (existsSync(pkgPath)) {
+      return JSON.parse(readFileSync(pkgPath, 'utf-8')).version;
+    }
+  }
+
+  // Fallback or throw an error
+  throw new Error('Unable to locate package.json to read version.');
+}

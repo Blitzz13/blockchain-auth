@@ -21,6 +21,15 @@ export class UsersService {
   ) {}
 
   public async create(createUserDto: UserRegisterDto): Promise<User> {
+    const user = await this.findByEmail(createUserDto.email);
+
+    if (user) {
+      throw new HttpException(
+        `User with email ${createUserDto.email} already exists`,
+        HttpStatus.BAD_REQUEST,
+      );
+    }
+
     const createdUser = new this.userModel(createUserDto);
 
     return createdUser.save();

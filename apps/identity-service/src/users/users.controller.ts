@@ -3,12 +3,19 @@ import {
   Controller,
   Get,
   Headers,
-  HttpCode,
   HttpException,
   HttpStatus,
   Logger,
   Put,
 } from '@nestjs/common';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiHeader,
+  ApiOperation,
+  ApiResponse,
+  ApiTags,
+} from '@nestjs/swagger';
 
 import { UpdatedUserDto } from '../dtos/UpdatedUserDTO';
 import { UserProfileDto } from '../dtos/UserProfileDTO';
@@ -18,6 +25,7 @@ import { UsersService } from './users.service';
 import { extractBearerToken } from '../utils/utils';
 import { AuthService } from '../auth/auth.service';
 
+@ApiTags('Users')
 @Controller('users')
 export class UsersController {
   private readonly logger = new Logger(UsersController.name);
@@ -27,7 +35,22 @@ export class UsersController {
   ) {}
 
   @Get('me')
-  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @ApiHeader({
+    name: 'authorization',
+    description: 'Bearer access token',
+    required: true,
+  })
+  @ApiOperation({ summary: 'Get current user profile' })
+  @ApiResponse({
+    status: 200,
+    description: 'Successfully retrieved user profile.',
+    type: UserProfileDto,
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'User ID or user not found.',
+  })
   public async getUserByToken(
     @Headers('authorization') authHeader: string,
   ): Promise<UserProfileDto> {
@@ -62,7 +85,23 @@ export class UsersController {
   }
 
   @Put('me')
-  @HttpCode(HttpStatus.OK)
+  @ApiBearerAuth()
+  @ApiHeader({
+    name: 'authorization',
+    description: 'Bearer access token',
+    required: true,
+  })
+  @ApiOperation({ summary: 'Update current user profile' })
+  @ApiBody({ type: UserUpdateDto })
+  @ApiResponse({
+    status: 200,
+    description: 'Successfully updated user profile.',
+    type: UpdatedUserDto,
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'User not found.',
+  })
   public async updateUserProfileByToken(
     @Headers('authorization') authHeader: string,
     @Body() userUpdateDto: UserUpdateDto,
@@ -100,7 +139,22 @@ export class UsersController {
   }
 
   @Put('me/password')
-  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiBearerAuth()
+  @ApiHeader({
+    name: 'authorization',
+    description: 'Bearer access token',
+    required: true,
+  })
+  @ApiOperation({ summary: 'Update current user password' })
+  @ApiBody({ type: UserUpdatePasswordDTO })
+  @ApiResponse({
+    status: 204,
+    description: 'Password updated successfully.',
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'User not found.',
+  })
   public async updateUserPasswordByToken(
     @Headers('authorization') authHeader: string,
     @Body() userUpdateDto: UserUpdatePasswordDTO,
