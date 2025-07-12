@@ -2,6 +2,9 @@
   "name": "@blockchain-auth/blockchain-service",
   "version": "0.0.1",
   "private": true,
+  "peerDependencies": {
+    "@blockchain-auth/shared": ">=0.0.1"
+  },
   "nx": {
     "targets": {
       "build": {

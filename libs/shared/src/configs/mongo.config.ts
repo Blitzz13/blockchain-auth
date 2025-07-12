@@ -1,7 +1,6 @@
 import { registerAs } from '@nestjs/config';
 import { MongooseModuleOptions } from '@nestjs/mongoose';
-
-import { assertDefined } from '../utils/utils';
+import { assertDefined } from 'src/utils/utils';
 
 const {
   MONGO_HOST,

@@ -4,6 +4,27 @@
 # Tip: Modify "docker-build" options in project.json to change docker build args.
 #
 # Run the container with `docker run -p 3000:3000 -t blockchain-auth-blockchain-service`.
+
+# ✅ Stage 1: The "builder" stage, where we build the application
+FROM docker.io/node:lts-alpine AS builder
+
+WORKDIR /app
+
+# Copy workspace configuration and dependency lists
+COPY package.json package-lock.json* ./
+
+# Install all dependencies (including dev dependencies needed for building)
+RUN npm ci
+
+# Copy the entire workspace source code
+COPY . .
+
+# Build the target application. Nx will automatically build any
+# dependent libraries (like 'shared') first.
+RUN npx nx build blockchain-service --prod
+
+
+# ✅ Stage 2: The final, lean production image
 FROM docker.io/node:lts-alpine
 
 ENV HOST=0.0.0.0
@@ -11,16 +32,24 @@ ENV PORT=3000
 
 WORKDIR /app
 
-RUN addgroup --system blockchain-auth-blockchain-service && \
-          adduser --system -G blockchain-auth-blockchain-service blockchain-auth-blockchain-service
+RUN addgroup --system app-user && \
+    adduser --system -G app-user app-user
 
-COPY apps/blockchain-service/dist blockchain-auth-blockchain-service/
-RUN chown -R blockchain-auth-blockchain-service:blockchain-auth-blockchain-service .
+# ✅ FIXED: Copy the built application output from the correct location.
+# This assumes the build output is in `dist/apps/blockchain-service`.
+# If your config outputs directly to `dist`, you would change this path.
+COPY --from=builder /app/apps/blockchain-service/dist .
 
-WORKDIR blockchain-auth-blockchain-service
-
-# You can remove this install step if you build with `--bundle` option.
-# The bundled output will include external dependencies.
+# The build process generates a production-only package.json in the dist folder.
+# Install ONLY production dependencies based on that file.
 RUN npm --omit=dev -f install
+
+# Copy any necessary assets (like your ABI file) from the builder stage
+# Adjust the path if your assets are in a different location
+COPY --from=builder /app/apps/blockchain-service/src/assets ./assets
+
+RUN chown -R app-user:app-user .
+
+USER app-user
 
 CMD [ "node", "main.js" ]

@@ -1,7 +1,6 @@
+import { assertDefined } from '@blockchain-auth/shared';
 import { registerAs } from '@nestjs/config';
 import { MongooseModuleOptions } from '@nestjs/mongoose';
-
-import { assertDefined } from '../utils/utils';
 
 const {
   MONGO_HOST,

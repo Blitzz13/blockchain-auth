@@ -1,6 +1,5 @@
 import { registerAs } from '@nestjs/config';
-
-import { assertDefined } from '../utils/utils';
+import { assertDefined } from '@blockchain-auth/shared';
 
 const { SEOPOLIA_WSS_URL, SEOPOLIA_HTTPS_URL } = process.env;
 

@@ -9,6 +9,11 @@
     "module": "nodenext",
     "moduleResolution": "nodenext",
     "noEmitOnError": true,
+    "rootDir": ".",
+    "baseUrl": ".",
+    "paths": {
+      "@blockchain-auth/shared": ["libs/shared/src/index.ts"]
+    },
     "noFallthroughCasesInSwitch": true,
     "noImplicitOverride": true,
     "noImplicitReturns": true,

@@ -4,7 +4,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { MONGO_CONFIG_TOKEN, mongoConfig } from '../configs/mongo.config';
+import { MONGO_CONFIG_TOKEN, mongoConfig } from '../../../../libs/shared/src/configs/mongo.config';
 import { UsersModule } from '../users/users.module';
 import { jwtConfig } from '../configs/jwt.config';
 import { AuthModule } from '../auth/auth.module';
