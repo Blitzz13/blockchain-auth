@@ -20,6 +20,7 @@ services:
       MONGO_USERNAME: root
       MONGO_PASSWORD: 1234
       MONGO_AUTH_SOURCE: admin
+      MONGO_DNS_LOOKUP: mongodb
       SEOPOLIA_HTTPS_URL: https://sepolia.infura.io/v3/yourkey
       SEOPOLIA_WSS_URL: wss://sepolia.infura.io/ws/v3/yourkey
     ports:
@@ -36,6 +37,7 @@ services:
       MONGO_USERNAME: root
       MONGO_PASSWORD: 1234
       MONGO_AUTH_SOURCE: admin
+      MONGO_DNS_LOOKUP: mongodb
       JWT_ACCESS_SECRET: SUPER_SECRET_KEY
       JWT_ACCESS_EXPIRES_IN: 8h
       JWT_REFRESH_SECRET: SUPER_SECRET_KEY_2
