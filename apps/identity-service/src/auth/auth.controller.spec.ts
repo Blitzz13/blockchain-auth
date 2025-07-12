@@ -64,11 +64,28 @@ describe('AuthController', () => {
         username: 'test',
       };
 
-      await controller.register(userRegisterDto);
+      const mockUser = {
+        id: 'abc123',
+        email: userRegisterDto.email,
+        username: userRegisterDto.username,
+        password: 'hashedpassword',
+        createdAt: new Date(),
+        updatedAt: new Date(),
+      };
+
+      jest.spyOn(usersService, 'create').mockResolvedValueOnce(mockUser);
+
+      const result = await controller.register(userRegisterDto);
+
       expect(usersService.create).toHaveBeenCalledWith(userRegisterDto);
+      expect(result).toEqual({
+        id: mockUser.id,
+        createdAt: mockUser.createdAt.toDateString(),
+        email: mockUser.email,
+        username: mockUser.username,
+      });
     });
   });
-
   describe('login', () => {
     it('should call usersService.login with the correct DTO', async () => {
       const userLoginDto: UserLoginDto = {

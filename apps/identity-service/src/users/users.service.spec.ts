@@ -82,14 +82,27 @@ describe('UsersService', () => {
         password: 'password123',
         username: 'newuser',
       };
+
+      jest.spyOn(service, 'findByEmail').mockResolvedValueOnce(null);
+
+      const savedUser = {
+        id: 'newUserId',
+        email: createUserDto.email,
+        username: createUserDto.username,
+        password: 'hashedpassword',
+      };
+
+      const mockCreatedUser = {
+        save: jest.fn().mockResolvedValue(savedUser),
+      };
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (userModel as any).mockImplementation(() => mockCreatedUser);
+
       const result = await service.create(createUserDto);
 
-      // Check that the constructor was called with the right data
-      expect(mockUserModel).toHaveBeenCalledWith(createUserDto);
-
-      // ✅ FIXED: Check that the final result is the expected user object.
-      // This implicitly confirms that the save operation was successful.
-      expect(result).toEqual(mockUser);
+      expect(result).toEqual(savedUser);
+      expect(mockCreatedUser.save).toHaveBeenCalled();
     });
   });
 
